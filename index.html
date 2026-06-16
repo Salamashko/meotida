@@ -748,7 +748,7 @@ localProblems.sort((a,b)=>String(a.title||"").localeCompare(String(b.title||""),
 
 const $ = (id) => document.getElementById(id);
 function debounce(fn, ms){ let t=null; return function(){ const a=arguments, c=this; clearTimeout(t); t=setTimeout(()=>fn.apply(c,a), ms); }; }
-const liveBuild = debounce(()=>buildResult(false), 180);
+const liveBuild = debounce(()=>buildResult(false), 250);
 function escapeHtml(s){ return String(s ?? "").replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m])); }
 function norm(s){ return String(s||"").toLowerCase().replaceAll("ё","е"); }
 function safeFileName(s){
@@ -957,11 +957,11 @@ function renderDynamicFields(){
     if(el){
       if(f.type==="docpair"){
         el.querySelectorAll("input").forEach(inp=>{
-          inp.addEventListener("input",()=>buildResult(false));
+          inp.addEventListener("input",liveBuild);
           inp.addEventListener("change",()=>buildResult(false));
         });
       } else {
-        el.addEventListener("input",()=>buildResult(false));
+        el.addEventListener("input",liveBuild);
         el.addEventListener("change",()=>{ 
           if(f.type==="file") addFiles(Array.from(el.files||[]), f.id);
           buildResult(false); 
@@ -1113,7 +1113,7 @@ window.addDocPairRow = function(fieldId){
   row.className = "docPairRow";
   row.innerHTML = `<input class="docPairNumber" type="text" placeholder="Номер документа"><input class="docPairDate" type="date" title="Дата документа"><button type="button" class="danger" onclick="this.closest('.docPairRow').remove(); buildResult(false);">Удалить</button>`;
   box.appendChild(row);
-  row.querySelectorAll("input").forEach(el=>{ el.addEventListener("input",()=>buildResult(false)); el.addEventListener("change",()=>buildResult(false)); });
+  row.querySelectorAll("input").forEach(el=>{ el.addEventListener("input",liveBuild); el.addEventListener("change",()=>buildResult(false)); });
 };
 
 function renderField(f, showScreenshotInstruction){
