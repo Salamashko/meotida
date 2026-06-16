@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Pre-commit hook: bumps patch version and sets Moscow time in index.html.
-Version format: v0.XX  (patch +1 on every commit)
+Pre-commit hook: bumps version and sets Moscow time in index.html.
+Version format: vN  (integer, +1 on every commit, e.g. v30 → v31)
 Date format:    DD.MM.YYYY HH:MM МСК
 """
 
@@ -24,20 +24,19 @@ msk = timezone(timedelta(hours=3))
 now = datetime.now(msk)
 new_date = now.strftime("%d.%m.%Y %H:%M МСК")
 
-# Extract current version from APP object and bump patch
-m = re.search(r'"version"\s*:\s*"v(\d+)\.(\d+)"', content)
+# Extract current version and bump
+m = re.search(r'"version"\s*:\s*"v(\d+)"', content)
 if not m:
     print("[pre-commit] WARNING: version not found in index.html, skipping bump")
     sys.exit(0)
 
-major, minor = int(m.group(1)), int(m.group(2))
-new_minor = minor + 1
-new_ver = f"v{major}.{new_minor}"
+cur = int(m.group(1))
+new_ver = f"v{cur + 1}"
 new_ver_date = f"{new_ver} · {new_date}"
 
-# Update APP object: "version":"vX.Y"  and  "dateDisplay":"..."
+# Update APP object: "version":"vN"  and  "dateDisplay":"..."
 content = re.sub(
-    r'("version"\s*:\s*)"v\d+\.\d+"',
+    r'("version"\s*:\s*)"v\d+"',
     f'\\1"{new_ver}"',
     content
 )
@@ -58,4 +57,4 @@ with open(HTML, "w", encoding="utf-8") as f:
     f.write(content)
 
 subprocess.run(["git", "add", HTML], check=True)
-print(f"[pre-commit] version bumped: v{major}.{minor} → {new_ver} · {new_date}")
+print(f"[pre-commit] version bumped: v{cur} → {new_ver} · {new_date}")
