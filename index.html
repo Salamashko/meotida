@@ -304,8 +304,8 @@
         <aside>
           <div class="card">
             <div class="mailTopAction">
-              <button id="openMailBtn" class="mailPrimary" type="button">Открыть письмо в Outlook / Thunderbird</button>
-              <div class="buttonHelp">Сначала заполните обязательные поля. Потом нажмите эту кнопку: откроется новое письмо на it@dtabak.ru с готовой темой и текстом. Архив и файлы нужно прикрепить вручную.</div>
+              <button id="openMailBtn" class="mailPrimary" type="button">Скачать письмо для Outlook / Thunderbird</button>
+              <div class="buttonHelp">Сначала заполните обязательные поля. Нажмите кнопку — скачается файл .eml. Откройте его двойным кликом: письмо откроется в почтовой программе с готовой темой и текстом. Архив и файлы прикрепите вручную.</div>
             </div>
             <h2>Тема письма</h2>
             <div id="subjectPreview" class="subjectBox">Пока не сформировано.</div>
@@ -2249,16 +2249,46 @@ function clearAll(){
 }
 
 
+function buildEmailHtml(body){
+  const LABEL_PFX=[‘Город: ‘,’Юрлицо: ‘,’Программа / база: ‘,’Контакт для связи: ‘,’Проблема: ‘];
+  const LABEL_EXACT=new Set([‘Данные по проблеме:’,’Прикрепленные файлы:’,’Комментарий:’]);
+  const LABEL_ST=’color:#888888;font-size:12px’;
+  const FOOTER_ST=’color:#888888;font-size:11px’;
+  const lines=body.split(‘\n’);
+  const fi=lines.findIndex(l=>l.startsWith(‘Подходящие инструкции:’));
+  const html=lines.map((line,i)=>{
+    const e=escapeHtml(line);
+    if(!line) return ‘’;
+    if(fi>=0&&i>=fi) return `<span style="${FOOTER_ST}">${e}</span>`;
+    if(LABEL_EXACT.has(line)) return `<span style="${LABEL_ST}">${e}</span>`;
+    const p=LABEL_PFX.find(x=>line.startsWith(x));
+    if(p) return `<span style="${LABEL_ST}">${escapeHtml(p)}</span>${escapeHtml(line.slice(p.length))}`;
+    return e;
+  }).join(‘<br>\n’);
+  return `<!DOCTYPE html><html><body style="font-family:Arial,sans-serif;font-size:14px;color:#000000;line-height:1.5;margin:12px">${html}</body></html>`;
+}
+
 function openMailClient(){
   const ok=buildResult(true);
   if(!ok) return;
   const to = APP.supportEmail || "it@dtabak.ru";
+  const subject = lastSubject || "Заявка в IT отдел";
   const bodyForMail = `${lastBody}\n\nВажно: если вы скачали архив, прикрепите его к письму вручную. Вложения через кнопку не добавляются автоматически.`;
-  const mailtoLink = `mailto:${to}?subject=${encodeURIComponent(lastSubject || "Заявка в IT отдел")}&body=${encodeURIComponent(bodyForMail)}`;
-  if(mailtoLink.length > 1800){
-    alert("Письмо откроется в почтовой программе. Если текст письма обрежется, нажмите кнопку ‘Скопировать тело’ и вставьте текст вручную. Архив и файлы прикрепите вручную.");
-  }
-  window.location.href = mailtoLink;
+  const htmlBody = buildEmailHtml(bodyForMail);
+  // RFC 2047 Base64 encoded subject for non-ASCII support
+  const subjectEncoded = `=?utf-8?B?${btoa(unescape(encodeURIComponent(subject)))}?=`;
+  const eml = [
+    ‘From: ‘,
+    `To: ${to}`,
+    `Subject: ${subjectEncoded}`,
+    ‘MIME-Version: 1.0’,
+    ‘Content-Type: text/html; charset=utf-8’,
+    ‘X-Unsent: 1’,
+    ‘’,
+    htmlBody
+  ].join(‘\r\n’);
+  const blob = new Blob([eml], {type: ‘message/rfc822’});
+  downloadBlob(blob, safeFileName(subject) + ‘.eml’);
 }
 
 async function downloadZip(){
